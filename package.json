@@ -4,6 +4,24 @@
   "description": "GitHub PR status widget for the OpenCode TUI, with an agent tool to start tracking a PR.",
   "type": "module",
   "license": "MIT",
+  "author": "Adam Farmer",
+  "homepage": "https://github.com/safety-adam/opencode-pr-status#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/safety-adam/opencode-pr-status.git"
+  },
+  "bugs": {
+    "url": "https://github.com/safety-adam/opencode-pr-status/issues"
+  },
+  "keywords": [
+    "opencode",
+    "opencode-plugin",
+    "opencode-tui",
+    "github",
+    "pull-requests",
+    "tui",
+    "typescript"
+  ],
   "exports": {
     ".": "./pr-monitor.ts",
     "./tui": "./tui.tsx"

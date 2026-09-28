@@ -1,5 +1,9 @@
 # opencode-pr-status
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+![OpenCode v2](https://img.shields.io/badge/OpenCode-v2-blue)
+![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)
+
 A GitHub pull request status widget for the [OpenCode](https://opencode.ai) terminal UI.
 
 It watches the current session for PRs the agent is working on and renders a compact
