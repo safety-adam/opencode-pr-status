@@ -1,5 +1,17 @@
 #!/usr/bin/env bash
-# Block commits that introduce secrets or internal identifiers into this public repo.
+# Block commits that would put secrets, internal identifiers, or a non-noreply
+# author email into this public repo.
 set -euo pipefail
 root="$(git rev-parse --show-toplevel)"
+
+email="${GIT_AUTHOR_EMAIL:-$(git config user.email)}"
+case "$email" in
+  *@users.noreply.github.com) ;;
+  *)
+    echo "pre-commit: author email '$email' is not a GitHub noreply address" >&2
+    echo "pre-commit: set it with: git config user.email '<id>+<user>@users.noreply.github.com'" >&2
+    exit 1
+    ;;
+esac
+
 exec "$root/scripts/secret-scan.sh"
