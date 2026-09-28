@@ -5,10 +5,8 @@ A GitHub pull request status widget for the [OpenCode](https://opencode.ai) term
 It watches the current session for PRs the agent is working on and renders a compact
 stacked status just above the prompt composer:
 
-```
-⑂ #42   acme/api   Tool retry loops       +1,621 -10   ● CI(2) Checks pending   ▲   ×
-⑂ #43   acme/api   fix/retry-backoff          +42   -7              Merged   ×
-```
+<img width="1559" height="117" alt="image" src="https://github.com/user-attachments/assets/eadb38c8-ddd2-4422-be22-89b6f325bb03" />
+
 
 ## Features
 
