@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Block commits that introduce secrets or internal identifiers into this public repo.
+set -euo pipefail
+root="$(git rev-parse --show-toplevel)"
+exec "$root/scripts/secret-scan.sh"

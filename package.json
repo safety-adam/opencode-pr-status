@@ -1,0 +1,20 @@
+{
+  "name": "opencode-pr-status",
+  "version": "0.1.0",
+  "description": "GitHub PR status widget for the OpenCode TUI, with an agent tool to start tracking a PR.",
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./pr-monitor.ts",
+    "./tui": "./tui.tsx"
+  },
+  "files": ["tui.tsx", "pr-monitor.ts", "README.md", "LICENSE"],
+  "dependencies": {
+    "@opencode/plugin": "latest"
+  },
+  "peerDependencies": {
+    "@opentui/core": ">=0.5.8",
+    "@opentui/solid": ">=0.5.8",
+    "solid-js": ">=1.9.0"
+  }
+}
