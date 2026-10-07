@@ -28,7 +28,7 @@ const RESOLVE_FIELDS =
 // from GraphQL (REST `mergeable` often lags as UNKNOWN, and REST exposes no
 // thread resolution at all).
 const GRAPH_QUERY =
-  "query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){reviewDecision mergeable mergeStateStatus reviewThreads(first:100){nodes{isResolved}}}}}"
+  "query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){reviewDecision mergeable mergeStateStatus isInMergeQueue mergeQueueEntry{position state} reviewThreads(first:100){nodes{isResolved}}}}}"
 
 type Check = { name: string; conclusion?: string; status?: string; state?: string }
 type PrData = {
@@ -46,6 +46,8 @@ type PrData = {
   reviewDecision: string // APPROVED | CHANGES_REQUESTED | REVIEW_REQUIRED | ""
   mergeable: string // MERGEABLE | CONFLICTING | UNKNOWN | ""
   unresolved: number
+  queued: boolean
+  queuePosition: number | null
   checks: Check[]
 }
 type RowData = PrData & { key: string }
@@ -288,16 +290,25 @@ function toRow(ref: Ref, pr: any): RowData | null {
     reviewDecision,
     mergeable: pr.mergeable ?? "",
     unresolved: 0,
+    queued: false,
+    queuePosition: null,
     checks,
   }
 }
 
-// Enrich a row from GraphQL: review decision, mergeability, unresolved threads.
+// Enrich a row from GraphQL: review decision, mergeability, merge queue, unresolved threads.
 async function fetchGraphMeta(
   repo: string,
   number: number,
   cwd: string,
-): Promise<{ reviewDecision: string; mergeable: string; mergeStateStatus: string; unresolved: number } | null> {
+): Promise<{
+  reviewDecision: string
+  mergeable: string
+  mergeStateStatus: string
+  queued: boolean
+  queuePosition: number | null
+  unresolved: number
+} | null> {
   const [owner, name] = repo.split("/")
   if (!owner || !name) return null
   const out = await run(
@@ -310,10 +321,13 @@ async function fetchGraphMeta(
     const pr = JSON.parse(out)?.data?.repository?.pullRequest
     if (!pr) return null
     const nodes = pr.reviewThreads?.nodes
+    const entry = pr.mergeQueueEntry
     return {
       reviewDecision: pr.reviewDecision ?? "",
       mergeable: pr.mergeable ?? "",
       mergeStateStatus: pr.mergeStateStatus ?? "",
+      queued: pr.isInMergeQueue === true || Boolean(entry),
+      queuePosition: typeof entry?.position === "number" ? entry.position : null,
       unresolved: Array.isArray(nodes) ? nodes.filter((n: any) => !n.isResolved).length : 0,
     }
   } catch {
@@ -345,6 +359,7 @@ function Stack(props: {
   const purpleBg = pick(theme.hue?.purple?.[800], theme.hue?.purple?.[700], theme.hue?.purple?.[900])
   const purpleText = pick(theme.hue?.purple?.[100], theme.hue?.purple?.[200], "magenta")
   const purpleMuted = pick(theme.hue?.purple?.[400], theme.hue?.purple?.[300], "gray")
+  const accent = pick(theme.hue?.accent?.[200], theme.hue?.cyan?.[200], theme.text?.feedback?.info?.base, "cyan")
 
   const merged = (row: RowData) => row.state === "MERGED"
   const closed = (row: RowData) => row.state === "CLOSED"
@@ -357,6 +372,11 @@ function Stack(props: {
       return { label: "Conflicts", color: red }
     if (checks === "fail") return { label: "Checks failed", color: red }
     if (row.reviewDecision === "CHANGES_REQUESTED") return { label: "Changes requested", color: red }
+    if (row.queued)
+      return {
+        label: row.queuePosition ? `Queued ${row.queuePosition}` : "Queued",
+        color: accent,
+      }
     if (checks === "pending" || row.mergeStateStatus === "UNSTABLE")
       return { label: "Checks pending", color: yellow }
     if (row.mergeStateStatus === "BEHIND") return { label: "Behind base", color: yellow }
@@ -611,6 +631,13 @@ function ControlPanel(props: {
       </box>
 
       {infoRow("Review", review.text, review.color)}
+      {props.row.queued
+        ? infoRow(
+            "Merge queue",
+            props.row.queuePosition ? `Position ${props.row.queuePosition}` : "Queued",
+            accent,
+          )
+        : null}
       {infoRow(
         "Unresolved comments",
         String(props.row.unresolved),
@@ -673,7 +700,7 @@ export default Plugin.define({
     let updateStore: (fn: (draft: any) => void) => void
     try {
       const [settings, update] = context.storage.store("pr-status", {
-        initial: { dismissed: {}, controls: {}, acted: {} },
+        initial: { dismissed: {}, controls: {}, acted: {}, refs: {} },
       })
       readStore = () => {
         const v = typeof settings === "function" ? settings() : settings
@@ -681,7 +708,7 @@ export default Plugin.define({
       }
       updateStore = (fn) => update(fn)
     } catch {
-      const mem: any = { dismissed: {}, controls: {}, acted: {} }
+      const mem: any = { dismissed: {}, controls: {}, acted: {}, refs: {} }
       readStore = () => mem
       updateStore = (fn) => fn(mem)
     }
@@ -689,6 +716,7 @@ export default Plugin.define({
     const readDismissed = (): Record<string, string[]> => readStore().dismissed ?? {}
     const readControls = (): Record<string, Controls> => readStore().controls ?? {}
     const readActed = (): Record<string, string> => readStore().acted ?? {}
+    const readRefs = (): Record<string, Ref[]> => readStore().refs ?? {}
 
     const controlsFor = (key: string): Controls => readControls()[key] ?? {}
     const setControl = (key: string, field: keyof Controls, value: boolean) =>
@@ -717,7 +745,15 @@ export default Plugin.define({
     const stateFor = (sessionID: string): SessionState => {
       let st = states.get(sessionID)
       if (!st) {
-        st = { refs: [], resolved: new Map(), repo: null, cwd: sessionDir(sessionID), scanning: false, timer: null }
+        // Seed from storage so tracked PRs survive a plugin reload.
+        st = {
+          refs: readRefs()[sessionID] ?? [],
+          resolved: new Map(),
+          repo: null,
+          cwd: sessionDir(sessionID),
+          scanning: false,
+          timer: null,
+        }
         states.set(sessionID, st)
       }
       return st
@@ -755,6 +791,8 @@ export default Plugin.define({
         const meta = await fetchGraphMeta(row.repo, row.number, st.cwd)
         if (meta) {
           row.unresolved = meta.unresolved
+          row.queued = meta.queued
+          row.queuePosition = meta.queuePosition
           if (meta.reviewDecision) row.reviewDecision = meta.reviewDecision
           if (meta.mergeable) row.mergeable = meta.mergeable
           if (meta.mergeStateStatus) row.mergeStateStatus = meta.mergeStateStatus
@@ -808,20 +846,28 @@ export default Plugin.define({
       }
     }
 
+    const persistRefs = (sessionID: string, refs: Ref[]) =>
+      updateStore((draft: any) => {
+        draft.refs ??= {}
+        draft.refs[sessionID] = refs
+      })
+
     const scan = async (sessionID: string) => {
       const st = stateFor(sessionID)
       if (st.scanning) return
       st.scanning = true
       try {
-        const all = await loadMessages(sessionID)
-        // Only the tail matters for references; keeps the sync walk cheap.
-        const messages = all.length > 500 ? all.slice(-500) : all
+        const messages = await loadMessages(sessionID)
 
         const fallback = await loadRepo(st)
         const found = refsFromMessages(messages, fallback)
+        // Merge with refs already tracked so a PR survives when its command
+        // scrolls out of the transcript or compaction removes it.
+        const before = st.refs.length
         const merged = new Map<string, Ref>()
         for (const r of [...st.refs, ...found]) merged.set(`${r.repo}#${r.number}`, r)
         st.refs = [...merged.values()]
+        if (st.refs.length !== before) persistRefs(sessionID, st.refs)
 
         const resolved = await Promise.all(st.refs.map((r) => resolve(st, r)))
         let list = resolved.filter((r): r is RowData => r !== null)
@@ -962,7 +1008,10 @@ export default Plugin.define({
         return
       }
       const key = `${ref.repo}#${ref.number}`
-      if (!st.refs.some((r) => `${r.repo}#${r.number}` === key)) st.refs.push(ref)
+      if (!st.refs.some((r) => `${r.repo}#${r.number}` === key)) {
+        st.refs.push(ref)
+        persistRefs(sessionID, st.refs)
+      }
       // Un-dismiss it if it was previously removed.
       updateStore((draft: any) => {
         const arr = draft.dismissed?.[sessionID]
