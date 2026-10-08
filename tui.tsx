@@ -372,6 +372,10 @@ function Stack(props: {
       return { label: "Conflicts", color: red }
     if (checks === "fail") return { label: "Checks failed", color: red }
     if (row.reviewDecision === "CHANGES_REQUESTED") return { label: "Changes requested", color: red }
+    // A BLOCKED state with unresolved threads means GitHub is waiting on the
+    // conversations, not on a review.
+    if (row.mergeStateStatus === "BLOCKED" && row.unresolved > 0)
+      return { label: "Unresolved conversations", color: yellow }
     if (row.queued)
       return {
         label: row.queuePosition ? `Queued ${row.queuePosition}` : "Queued",
@@ -380,8 +384,9 @@ function Stack(props: {
     if (checks === "pending" || row.mergeStateStatus === "UNSTABLE")
       return { label: "Checks pending", color: yellow }
     if (row.mergeStateStatus === "BEHIND") return { label: "Behind base", color: yellow }
-    if (row.reviewDecision === "REVIEW_REQUIRED" || row.mergeStateStatus === "BLOCKED")
+    if (row.reviewDecision === "REVIEW_REQUIRED")
       return { label: "Review required", color: yellow }
+    if (row.mergeStateStatus === "BLOCKED") return { label: "Blocked", color: yellow }
     if (row.mergeStateStatus === "CLEAN" || (checks === "pass" && row.reviewDecision === "APPROVED"))
       return { label: "Ready to merge", color: green }
     if (checks === "pass") return { label: "All checks passed", color: green }
@@ -568,9 +573,11 @@ function ControlPanel(props: {
         ? { text: "Conflicts", color: red }
         : props.row.mergeStateStatus === "BEHIND"
           ? { text: "Behind base", color: yellow }
-          : props.row.mergeStateStatus === "BLOCKED"
-            ? { text: "Blocked", color: textMuted }
-            : props.row.mergeStateStatus === "UNSTABLE"
+          : props.row.mergeStateStatus === "BLOCKED" && props.row.unresolved > 0
+            ? { text: "Unresolved conversations", color: yellow }
+            : props.row.mergeStateStatus === "BLOCKED"
+              ? { text: "Blocked", color: textMuted }
+              : props.row.mergeStateStatus === "UNSTABLE"
               ? { text: "Unstable", color: yellow }
               : props.row.mergeStateStatus === "DRAFT"
                 ? { text: "Draft", color: textMuted }
