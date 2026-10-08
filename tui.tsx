@@ -944,6 +944,16 @@ export default Plugin.define({
       void scan(sid)
     }, 30_000)
 
+    // Refresh the moment focus moves to a different session.
+    let lastFocused = currentSessionID()
+    const focusPoll = setInterval(() => {
+      const sid = currentSessionID()
+      if (!sid || sid === lastFocused) return
+      lastFocused = sid
+      stateFor(sid).resolved.clear()
+      schedule(sid)
+    }, 1000)
+
     const openUrl = async (url: string) => {
       if (!url) return
       await run("open", [url], rootCwd)
@@ -1111,6 +1121,7 @@ export default Plugin.define({
     return () => {
       for (const st of states.values()) clearTimeout(st.timer)
       clearInterval(poll)
+      clearInterval(focusPoll)
       offs.forEach((off: any) => off?.())
       stopListen?.()
     }
