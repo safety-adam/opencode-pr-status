@@ -1,5 +1,5 @@
 import { Plugin } from "@opencode/plugin/tui"
-import { For, createEffect, createSignal } from "solid-js"
+import { ErrorBoundary, For, createEffect, createSignal } from "solid-js"
 
 // ---------------------------------------------------------------------------
 // PR status stack — watches the current session for GitHub PRs the agent is
@@ -497,9 +497,18 @@ function Stack(props: {
     </box>
   )
 
+  const list = () => {
+    try {
+      const value = (props as { rows?: () => unknown }).rows?.()
+      return Array.isArray(value) ? value : []
+    } catch {
+      return []
+    }
+  }
+
   return (
     <box flexDirection="column" flexShrink={0}>
-      <For each={props.rows()}>
+      <For each={list()}>
         {(row) => (merged(row) ? mergedRow(row) : closed(row) ? closedRow(row) : openRow(row))}
       </For>
     </box>
@@ -1029,15 +1038,17 @@ export default Plugin.define({
     context.ui.slot({
       append: "session.composer.top",
       render: (input: any) => (
-        <ComposerSlot
-          context={context}
-          input={input}
-          rows={rows}
-          schedule={schedule}
-          onOpen={(r: RowData) => void openUrl(r.url)}
-          onChecks={openControls}
-          onDismiss={dismiss}
-        />
+        <ErrorBoundary fallback={() => null}>
+          <ComposerSlot
+            context={context}
+            input={input}
+            rows={rows}
+            schedule={schedule}
+            onOpen={(r: RowData) => void openUrl(r.url)}
+            onChecks={openControls}
+            onDismiss={dismiss}
+          />
+        </ErrorBoundary>
       ),
     })
 
