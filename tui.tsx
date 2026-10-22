@@ -1,6 +1,18 @@
 import { Plugin } from "@opencode/plugin/tui"
 import { ErrorBoundary, For, createEffect, createSignal } from "solid-js"
 
+const DEBUG_LOG =
+  "/private/var/folders/lv/xy553ht919ncwhc_19h43hww0000gp/T/opencode/pr-status-debug.log"
+
+function debugLog(message: string) {
+  try {
+    void import("node:fs")
+      .then((fs: any) => fs.appendFileSync(DEBUG_LOG, `${new Date().toISOString()} ${message}\n`))
+      .catch(() => {})
+  } catch {}
+}
+
+
 // ---------------------------------------------------------------------------
 // PR status stack — watches the current session for GitHub PRs the agent is
 // working on, resolves each with `gh`, and renders a vertically stacked list
@@ -327,7 +339,11 @@ function Stack(props: {
   onDismiss: (row: RowData) => void
 }) {
   const theme = props.context.theme
-  const chipBg = pick(theme.background?.element, theme.background?.action?.secondary)
+  const chipBg = pick(
+    theme.background?.action?.secondary?.base,
+    theme.background?.element?.base,
+    theme.background?.base,
+  )
   const textBase = pick(theme.text?.base, theme.text, "white")
   const textMuted = pick(theme.text?.muted, theme.text?.base, "gray")
   const green = pick(theme.hue?.green?.[200], theme.text?.feedback?.success?.base, "green")
@@ -418,7 +434,7 @@ function Stack(props: {
 
   const mergedRow = (row: RowData) => stateRow(row, purpleBg, purpleText, purpleMuted, "Merged")
   const closedRow = (row: RowData) =>
-    stateRow(row, pick(theme.background?.element, chipBg), textMuted, textMuted, "Closed")
+    stateRow(row, pick(theme.background?.element?.base, chipBg), textMuted, textMuted, "Closed")
 
   const openRow = (row: RowData) => (
     <box
@@ -501,7 +517,8 @@ function Stack(props: {
     try {
       const value = (props as { rows?: () => unknown }).rows?.()
       return Array.isArray(value) ? value : []
-    } catch {
+    } catch (err) {
+      debugLog(`rows getter error ${(err as any)?.stack ?? err}`)
       return []
     }
   }
@@ -663,8 +680,12 @@ function ComposerSlot(props: {
 }) {
   const sid = () => props.input?.sessionID as string | undefined
   createEffect(() => {
-    const s = sid()
-    if (s) props.schedule(s)
+    try {
+      const s = sid()
+      if (s) props.schedule(s)
+    } catch (err) {
+      debugLog(`effect error ${(err as any)?.stack ?? err}`)
+    }
   })
   return (
     <Stack
@@ -879,8 +900,9 @@ export default Plugin.define({
 
         setRows((prev) => ({ ...prev, [sessionID]: list }))
         await maybeAct(sessionID, list, st)
-      } catch {
+      } catch (err) {
         // A failed scan must not take down the TUI. Keep the last good rows.
+        debugLog(`scan error ${sessionID} ${(err as any)?.stack ?? err}`)
       } finally {
         st.scanning = false
       }
@@ -1038,7 +1060,12 @@ export default Plugin.define({
     context.ui.slot({
       append: "session.composer.top",
       render: (input: any) => (
-        <ErrorBoundary fallback={() => null}>
+        <ErrorBoundary
+          fallback={(err) => {
+            debugLog(`render error ${(err as any)?.stack ?? err}`)
+            return null
+          }}
+        >
           <ComposerSlot
             context={context}
             input={input}
