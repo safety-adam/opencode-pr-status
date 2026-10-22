@@ -163,9 +163,6 @@ const SLASH_RE = /\b([\w.-]+\/[\w.-]+)#(\d{1,6})\b/g
 
 // Tools that create a PR directly (e.g. GitHub MCP create_pull_request).
 const CREATE_PR_TOOL_RE = /create[_ ]?(pr$|pr_|pull.?request)/i
-// Any explicit `gh pr <subcommand>` invocation.
-const GH_PR_RE = /\bgh\s+pr\s+([a-z][a-z-]*)([^\n;&|]*)/gi
-const REPO_FLAG_RE = /(?:--repo|-R)[=\s]+([\w.-]+\/[\w.-]+)/
 
 type RefMap = Map<string, Ref>
 
@@ -184,22 +181,9 @@ function addFromText(found: RefMap, text: string) {
   }
 }
 
-// `gh pr view 1631 --repo owner/repo`, `gh pr edit ...`, `-R owner/repo`, etc.
-// `create` is skipped: its PR number only appears in the command output.
-function addFromGhCommands(found: RefMap, command: string, bareRepo: string) {
-  for (const m of command.matchAll(GH_PR_RE)) {
-    const sub = m[1].toLowerCase()
-    if (sub === "create") continue
-    const rest = m[2] ?? ""
-    const repo = REPO_FLAG_RE.exec(rest)?.[1] ?? bareRepo
-    const num = rest.match(/(?:^|\s)(\d{1,6})(?=\s|$)/)?.[1]
-    if (repo && num) addRef(found, repo, Number(num))
-  }
-}
-
-// Only PRs the agent is actively working on: read PR references out of the
-// agent's own `gh pr ...` commands and their output — never out of arbitrary
-// transcript text or file contents, which pulled in unrelated PRs.
+// Only PRs raised in this session, or ones the user explicitly asked to monitor.
+// Reading `gh pr view` and `gh pr list` output pulled in old PRs the agent was
+// only inspecting, so we do not track those.
 function refsFromMessages(messages: any[], fallbackRepo: string): Ref[] {
   const found: RefMap = new Map()
 
@@ -236,17 +220,12 @@ function refsFromMessages(messages: any[], fallbackRepo: string): Ref[] {
       }
     }
 
-    let sawGhPr = false
+    let createdHere = false
     for (const command of commands) {
-      if (/\bgh\s+pr\s+/i.test(command)) {
-        sawGhPr = true
-        addFromGhCommands(found, command, fallbackRepo)
-        addFromText(found, command)
-      }
+      if (/\bgh\s+pr\s+create\b/i.test(command)) createdHere = true
     }
-    // Outputs are only trusted when the agent actually ran a `gh pr` command
-    // (so this is PR output, not the contents of a file the agent read).
-    if (sawGhPr || createTool) {
+    // Only read output when this session created the PR, or a create tool ran.
+    if (createdHere || createTool) {
       for (const output of outputs) addFromText(found, output)
     }
   }
@@ -1110,8 +1089,29 @@ export default Plugin.define({
                   if (value) await addManual(sid, value)
                 },
               },
+              {
+                id: "pr-status.clear",
+                title: "PR status: clear tracked PRs for this session",
+                group: "PR status",
+                palette: true,
+                run: () => {
+                  const sid = currentSessionID()
+                  if (!sid) return
+                  stateFor(sid).refs = []
+                  updateStore((draft: any) => {
+                    if (draft.refs) delete draft.refs[sid]
+                  })
+                  setRows((prev) => ({ ...prev, [sid]: [] }))
+                  context.ui.toast.show({ message: "Cleared tracked PRs", variant: "info" })
+                },
+              },
             ],
-            bindings: ["pr-status.refresh", "pr-status.restore", "pr-status.monitor"],
+            bindings: [
+              "pr-status.refresh",
+              "pr-status.restore",
+              "pr-status.monitor",
+              "pr-status.clear",
+            ],
           }))
         } catch {}
         return null
