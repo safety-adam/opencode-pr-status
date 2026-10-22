@@ -73,7 +73,7 @@ function fmt(n: number): string {
 }
 
 function ciState(checks: Check[]): "pass" | "fail" | "pending" | "none" {
-  if (!checks.length) return "none"
+  if (!Array.isArray(checks) || checks.length === 0) return "none"
   let pending = false
   for (const c of checks) {
     // CheckRuns use status/conclusion; StatusContexts use state.
@@ -93,6 +93,7 @@ function ciState(checks: Check[]): "pass" | "fail" | "pending" | "none" {
 }
 
 function failingNames(checks: Check[]): string {
+  if (!Array.isArray(checks)) return ""
   return checks
     .filter((c) => {
       const conclusion = (c.conclusion ?? "").toUpperCase()
@@ -612,7 +613,7 @@ function ControlPanel(props: {
           {label()}
         </text>
         <text fg={textMuted} flexShrink={0}>
-          {String(props.row.checks.length)}
+          {String(Array.isArray(props.row.checks) ? props.row.checks.length : 0)}
         </text>
       </box>
 
@@ -661,7 +662,8 @@ function ComposerSlot(props: {
       context={props.context}
       rows={() => {
         const s = sid()
-        return s ? (props.rows()[s] ?? []) : []
+        const list = s ? props.rows()[s] : undefined
+        return Array.isArray(list) ? list : []
       }}
       onOpen={props.onOpen}
       onChecks={props.onChecks}
@@ -761,7 +763,8 @@ export default Plugin.define({
       } catch {}
       try {
         const res: any = await context.client.session.message.list({ sessionID })
-        return Array.isArray(res?.data) ? res.data : (res ?? [])
+        if (Array.isArray(res?.data)) return res.data
+        return Array.isArray(res) ? res : []
       } catch {
         return []
       }
