@@ -142,9 +142,9 @@ async function ghJson(args: string[], cwd: string): Promise<any | null> {
 // ---------------------------------------------------------------------------
 
 function collectStrings(value: any, out: string[], depth = 0) {
-  if (out.length > 4000 || depth > 8) return
+  if (out.length > 1000 || depth > 8) return
   if (typeof value === "string") {
-    out.push(value)
+    out.push(value.length > 20_000 ? value.slice(0, 20_000) : value)
     return
   }
   if (typeof value !== "object" || value === null) return
@@ -732,8 +732,9 @@ export default Plugin.define({
       let st = states.get(sessionID)
       if (!st) {
         // Seed from storage so tracked PRs survive a plugin reload.
+        const stored = readRefs()[sessionID]
         st = {
-          refs: readRefs()[sessionID] ?? [],
+          refs: Array.isArray(stored) ? stored : [],
           resolved: new Map(),
           repo: null,
           cwd: sessionDir(sessionID),
@@ -843,7 +844,10 @@ export default Plugin.define({
       if (st.scanning) return
       st.scanning = true
       try {
-        const messages = await loadMessages(sessionID)
+        const all = await loadMessages(sessionID)
+        // Scan a bounded tail. Persisted refs keep older PRs visible, and a
+        // whole-transcript scan on a long session can exhaust memory.
+        const messages = all.length > 500 ? all.slice(-500) : all
 
         const fallback = await loadRepo(st)
         const found = refsFromMessages(messages, fallback)
@@ -863,6 +867,8 @@ export default Plugin.define({
 
         setRows((prev) => ({ ...prev, [sessionID]: list }))
         await maybeAct(sessionID, list, st)
+      } catch {
+        // A failed scan must not take down the TUI. Keep the last good rows.
       } finally {
         st.scanning = false
       }
