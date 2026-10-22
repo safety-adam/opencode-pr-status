@@ -396,7 +396,7 @@ function Stack(props: {
           {row.repo}
         </text>
         <text fg={fg} wrapMode="none" truncate flexShrink={1} minWidth={0}>
-          {row.branch}
+          {row.title}
         </text>
       </box>
       <text fg={fg} flexShrink={0}>
