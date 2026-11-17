@@ -24,11 +24,32 @@
   ],
   "exports": {
     ".": "./pr-monitor.ts",
-    "./tui": "./tui.tsx"
+    "./tui": "./tui.tsx",
+    "./gui-experimental": "./dist/gui-experimental.cjs"
   },
-  "files": ["tui.tsx", "pr-monitor.ts", "README.md", "LICENSE"],
+  "files": [
+    "tui.tsx",
+    "pr-monitor.ts",
+    "shared.ts",
+    "gui.tsx",
+    "contract.ts",
+    "vite.config.ts",
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build:gui": "vite build",
+    "prepack": "npm run build:gui"
+  },
   "dependencies": {
     "@opencode/plugin": "latest"
+  },
+  "devDependencies": {
+    "@opencode/plugin": "^2.3.0",
+    "solid-js": "^1.9.19",
+    "vite": "^8.3.8",
+    "vite-plugin-solid": "^2.11.16"
   },
   "peerDependencies": {
     "@opentui/core": ">=0.5.8",
