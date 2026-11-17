@@ -73,11 +73,11 @@ function toRow(raw: Record<string, unknown>): Pull {
 const MUTED = { opacity: 0.6 }
 
 const TONE_COLOURS: Record<string, string> = {
-  critical: "var(--icon-critical-base, #e06b75)",
-  warning: "var(--icon-warning-base, #f1c21b)",
-  success: "var(--icon-success-base, #80d98f)",
-  info: "var(--text-interactive-base, #80d0ff)",
-  neutral: "var(--text-weak, #808080)",
+  critical: "#e06b75",
+  warning: "#f1c21b",
+  success: "#80d98f",
+  info: "#80d0ff",
+  neutral: "#808080",
 }
 
 function statusColour(row: Pull): string {
