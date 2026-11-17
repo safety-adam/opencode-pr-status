@@ -287,7 +287,7 @@ function PullsPanel() {
                 {row.title}
               </span>
               <Show when={row.draft}>
-                <span style={statusPill("var(--text-weak, #808080)", "var(--surface-weak, rgba(128, 128, 128, 0.14))")}>draft</span>
+                <span style={statusPill("var(--text-base, #ededed)", "rgba(255, 255, 255, 0.08)")}>draft</span>
               </Show>
             </div>
             <div
