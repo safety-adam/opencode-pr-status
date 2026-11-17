@@ -130,13 +130,12 @@ export type PullStatusInput = {
 // returned tone to its own colour system.
 export function pullStatus(input: PullStatusInput): { label: string; tone: StatusTone } {
   const checks = ciState(input.checks)
-  if (input.isDraft || input.mergeStateStatus === "DRAFT") return { label: "Draft", tone: "neutral" }
   if (input.mergeable === "CONFLICTING" || input.mergeStateStatus === "DIRTY")
     return { label: "Conflicts", tone: "critical" }
   if (checks === "fail") return { label: "Checks failed", tone: "critical" }
   if (input.reviewDecision === "CHANGES_REQUESTED") return { label: "Changes requested", tone: "critical" }
-  if (input.mergeStateStatus === "BLOCKED" && (input.unresolved ?? 0) > 0)
-    return { label: "Unresolved conversations", tone: "warning" }
+  // Unresolved comments count as a pending state whether or not GitHub blocks merging on them.
+  if ((input.unresolved ?? 0) > 0) return { label: "Unresolved conversations", tone: "warning" }
   if (input.queued)
     return { label: input.queuePosition ? `Queued ${input.queuePosition}` : "Queued", tone: "info" }
   if (checks === "pending" || input.mergeStateStatus === "UNSTABLE")
@@ -144,6 +143,7 @@ export function pullStatus(input: PullStatusInput): { label: string; tone: Statu
   if (input.mergeStateStatus === "BEHIND") return { label: "Behind base", tone: "warning" }
   if (input.reviewDecision === "REVIEW_REQUIRED") return { label: "Review required", tone: "warning" }
   if (input.mergeStateStatus === "BLOCKED") return { label: "Blocked", tone: "warning" }
+  if (input.isDraft || input.mergeStateStatus === "DRAFT") return { label: "Draft", tone: "neutral" }
   if (input.mergeStateStatus === "CLEAN" || (checks === "pass" && input.reviewDecision === "APPROVED"))
     return { label: "Ready to merge", tone: "success" }
   if (checks === "pass") return { label: "All checks passed", tone: "success" }
