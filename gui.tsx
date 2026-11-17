@@ -385,7 +385,7 @@ function PullsPanel() {
               <Show when={row.status === "Merged"}>
                 <span
                   style={statusPill(
-                    statusColour(row),
+                    "#d2a8ff",
                     "rgba(130, 80, 223, 0.14)",
                   )}
                 >
