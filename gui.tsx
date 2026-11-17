@@ -4,7 +4,7 @@ import { For, Show, createEffect, createSignal, onCleanup } from "solid-js"
 import { Command, Panel, Plugin, usePlugin, type PanelTab } from "@opencode/plugin/gui"
 import { Pulls, type Pull } from "./contract"
 import { Schema } from "effect"
-import { ciState, pullStatus, refsFromMessages } from "./shared"
+import { GITHUB_MERGED_PURPLE, ciState, pullStatus, refsFromMessages } from "./shared"
 
 // gh is not on the PATH Electron gets when the app starts from Finder.
 const GH_CANDIDATES = ["/opt/homebrew/bin/gh", "/usr/local/bin/gh", "gh"]
@@ -81,7 +81,7 @@ const TONE_COLOURS: Record<string, string> = {
   success: "var(--icon-success-base, #80d98f)",
   info: "#80d0ff",
   neutral: "#808080",
-  merged: "var(--icon-info-base, #b38ff4)",
+  merged: GITHUB_MERGED_PURPLE,
 }
 
 function statusColour(row: Pull): string {
@@ -386,7 +386,7 @@ function PullsPanel() {
                 <span
                   style={statusPill(
                     statusColour(row),
-                    "var(--surface-info-weak, rgba(179, 143, 244, 0.14))",
+                    "rgba(130, 80, 223, 0.14)",
                   )}
                 >
                   Merged

@@ -1,5 +1,6 @@
 import { Plugin } from "@opencode/plugin/tui"
 import { ErrorBoundary, For, createEffect, createSignal } from "solid-js"
+import { GITHUB_MERGED_PURPLE } from "./shared"
 
 const DEBUG_LOG =
   "/private/var/folders/lv/xy553ht919ncwhc_19h43hww0000gp/T/opencode/pr-status-debug.log"
@@ -352,9 +353,9 @@ function Stack(props: {
   // grey/white. The semantic warning colour is yellow here; "yellow" is a
   // last-resort named colour.
   const yellow = pick(theme.text?.feedback?.warning?.base, "yellow")
-  const purpleBg = pick(theme.hue?.purple?.[800], theme.hue?.purple?.[700], theme.hue?.purple?.[900])
-  const purpleText = pick(theme.hue?.purple?.[100], theme.hue?.purple?.[200], "magenta")
-  const purpleMuted = pick(theme.hue?.purple?.[400], theme.hue?.purple?.[300], "gray")
+  const purpleBg = GITHUB_MERGED_PURPLE
+  const purpleText = "#ffffff"
+  const purpleMuted = "#e2c5ff"
   const accent = pick(theme.hue?.accent?.[200], theme.hue?.cyan?.[200], theme.text?.feedback?.info?.base, "cyan")
 
   const merged = (row: RowData) => row.state === "MERGED"

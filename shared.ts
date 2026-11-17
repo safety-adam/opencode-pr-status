@@ -113,6 +113,8 @@ export function refsFromMessages(messages: any[], fallbackRepo: string): Ref[] {
   return [...found.values()]
 }
 
+export const GITHUB_MERGED_PURPLE = "#8250df"
+
 export type StatusTone = "success" | "critical" | "warning" | "info" | "neutral" | "merged"
 
 export type PullStatusInput = {
