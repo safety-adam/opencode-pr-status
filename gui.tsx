@@ -313,9 +313,7 @@ function PullsPanel() {
               <Show when={(row.checks || row.review) && row.comments}>
                 <span style={MUTED}>·</span>
               </Show>
-              <Show when={row.comments}>
-                <span style={{ color: "var(--text-weak, #808080)" }}>{row.comments || "0 comments"}</span>
-              </Show>
+                <span style={{ "margin-left": "auto", color: "var(--text-weak, #808080)" }}>{row.comments || "0 comments"}</span>
             </div>
           </div>
         )}
