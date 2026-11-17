@@ -84,16 +84,9 @@ function statusColour(row: Pull): string {
   return TONE_COLOURS[row.tone] ?? TONE_COLOURS.neutral
 }
 
-const TONE_BACKGROUNDS: Record<string, string> = {
-  critical: "var(--surface-critical-weak, rgba(224, 107, 117, 0.1))",
-  warning: "var(--surface-warning-weak, rgba(241, 194, 27, 0.1))",
-  success: "var(--surface-success-weak, rgba(128, 217, 143, 0.1))",
-  info: "var(--surface-info-weak, rgba(128, 208, 255, 0.1))",
-  neutral: "transparent",
-}
-
 function statusBackground(row: Pull): string {
-  return TONE_BACKGROUNDS[row.tone] ?? "transparent"
+  if (row.tone === "neutral") return "transparent"
+  return `color-mix(in srgb, ${statusColour(row)} 5%, transparent)`
 }
 
 function checkLabel(checks: string): string {
@@ -496,7 +489,9 @@ export default Plugin.define({
               input.directory,
             )) as Record<string, unknown>
             if (raw && typeof raw === "object") {
-              rows.push(toRow({ ...raw, ...(await metaFor(ref.repo, ref.number, input.directory)) }))
+              const stored = toRow({ ...raw, ...(await metaFor(ref.repo, ref.number, input.directory)) })
+              guiLog(`row ${stored.number} status=${stored.status} tone=${stored.tone}`)
+              rows.push(stored)
             }
           } catch {}
         }
