@@ -54,10 +54,13 @@ Public Git history is permanent and mirrored quickly.
 
 ## Project overview
 
-An OpenCode plugin with two entrypoints:
+An OpenCode plugin with server, TUI, and GUI entrypoints.
 
-- `pr-monitor.ts` — server plugin registering the `monitor_pr` tool (entrypoint `.`).
-- `tui.tsx` — terminal UI plugin rendering the PR stack (entrypoint `./tui`).
+- `pr-monitor.ts` registers the `monitor_pr` tool and the PR lookup RPC (entrypoint `.`).
+- `pulls.ts` resolves GitHub rows and stores tracked refs on the server.
+- `rpc.ts` defines the portable RPC contract shared with GUI windows.
+- `tui.tsx` renders the PR stack in the terminal (entrypoint `./tui`).
+- `gui.tsx` renders the Desktop and Web side panel (entrypoint `./gui-experimental`).
 
-Detection is intentionally narrow: only explicit `gh pr ...` commands and `monitor_pr`
-tool calls are tracked; arbitrary transcript text and file contents are ignored.
+Detection is intentionally narrow. Only PR creation commands and `monitor_pr`
+tool calls are tracked. Arbitrary transcript text, inspection commands, and file contents are ignored.

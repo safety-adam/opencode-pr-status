@@ -22,6 +22,7 @@ stacked status just above the prompt composer:
   state (`Checks pending`, `Review required`, `Changes requested`, `Conflicts`, `Behind base`,
   `Ready to merge`, `Draft`).
 - **Merged / closed rows.** Rendered as distinct bars.
+- **Desktop and Web panel.** The same Solid panel runs in both GUI hosts. The server owns GitHub access and durable refs through RPC.
 - **CI monitoring panel** (click the chip or `▲`): review state, unresolved comments, mergeability,
   plus two opt-in automations — *Auto-fix CI & address comments* and *Auto-merge when ready*.
 - **Ask the assistant to track a PR.** The `monitor_pr` tool lets you say "monitor PR #123".
@@ -30,7 +31,24 @@ stacked status just above the prompt composer:
 ## Requirements
 
 - [OpenCode](https://opencode.ai) v2
-- The [`gh`](https://cli.github.com) CLI, installed and authenticated (`gh auth login`)
+- The [`gh`](https://cli.github.com) CLI, installed and authenticated (`gh auth login`) on the OpenCode server host
+
+## Desktop and Web
+
+The package adds a Pull requests side panel to OpenCode Desktop. GitHub lookups and tracked refs run through the server plugin's RPC, so the browser needs no Node or `gh` access.
+
+Web support needs an OpenCode build that includes the experimental Web plugin loader from [upstream PR 62608](https://github.com/anomalyco/opencode/pull/62608). On that build, allow this plugin in `opencode.json(c)`.
+
+```jsonc
+{
+  "plugins": ["opencode-pr-status"],
+  "experimental": {
+    "plugin_gui_web": ["opencode-pr-status"],
+  },
+}
+```
+
+Allow only plugins you trust on every browser that connects. On a compact layout, open **More...**, then **Pull requests**.
 
 ## Install
 

@@ -1,7 +1,7 @@
 {
   "name": "opencode-pr-status",
   "version": "0.1.0",
-  "description": "GitHub PR status widget for the OpenCode TUI, with an agent tool to start tracking a PR.",
+  "description": "GitHub PR status widget for OpenCode TUI, Desktop and Web, with an agent tool to start tracking a PR.",
   "type": "module",
   "license": "MIT",
   "author": "Adam Farmer",
@@ -30,6 +30,8 @@
   "files": [
     "tui.tsx",
     "pr-monitor.ts",
+    "pulls.ts",
+    "rpc.ts",
     "shared.ts",
     "gui.tsx",
     "contract.ts",

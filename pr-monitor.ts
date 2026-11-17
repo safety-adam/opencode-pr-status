@@ -1,12 +1,16 @@
 import { Plugin } from "@opencode/plugin"
+import { listPulls, type ListInput } from "./pulls"
+import { Pulls } from "./rpc"
 
 // Lets you ask the assistant to start tracking a PR in the PR status widget.
 // The widget watches the transcript for this tool call, so the tool itself has
-// no side effects — it just surfaces the PR reference. Accepts a PR URL,
-// owner/repo#number, or a bare PR number.
+// no side effects. Accepts a PR URL, owner/repo#number, or a bare PR number.
 export default Plugin.define({
-  id: "pr-monitor",
+  id: "opencode-pr-status",
   async setup(ctx) {
+    await ctx.rpc.register(Pulls, {
+      list: async (input) => listPulls(ctx.storage, input as ListInput),
+    })
     await ctx.tool.transform((editor) => {
       editor.add({
         name: "monitor_pr",
