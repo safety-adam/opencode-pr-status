@@ -86,7 +86,7 @@ function statusColour(row: Pull): string {
 
 function statusBackground(row: Pull): string {
   if (row.tone === "neutral") return "transparent"
-  return `color-mix(in srgb, ${statusColour(row)} 5%, transparent)`
+  return `color-mix(in srgb, ${statusColour(row)} 10%, transparent)`
 }
 
 function checkLabel(checks: string): string {
