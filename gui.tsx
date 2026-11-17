@@ -136,7 +136,7 @@ async function commentsFor(repo: string, number: number, directory: string): Pro
       directory,
     )) as any
     const nodes = raw?.data?.repository?.pullRequest?.reviewThreads?.nodes
-    if (!Array.isArray(nodes)) return ""
+    if (!Array.isArray(nodes) || nodes.length === 0) return "0 comments"
     const resolved = nodes.filter((thread: any) => thread?.isResolved === true).length
     const unresolved = nodes.length - resolved
     return [
