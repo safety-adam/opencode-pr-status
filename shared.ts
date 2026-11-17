@@ -113,9 +113,10 @@ export function refsFromMessages(messages: any[], fallbackRepo: string): Ref[] {
   return [...found.values()]
 }
 
-export type StatusTone = "success" | "critical" | "warning" | "info" | "neutral"
+export type StatusTone = "success" | "critical" | "warning" | "info" | "neutral" | "merged"
 
 export type PullStatusInput = {
+  state?: string
   checks: Check[]
   reviewDecision?: string
   mergeable?: string
@@ -130,6 +131,8 @@ export type PullStatusInput = {
 // returned tone to its own colour system.
 export function pullStatus(input: PullStatusInput): { label: string; tone: StatusTone } {
   const checks = ciState(input.checks)
+  if (input.state === "MERGED") return { label: "Merged", tone: "merged" }
+  if (input.state === "CLOSED") return { label: "Closed", tone: "neutral" }
   if (input.mergeable === "CONFLICTING" || input.mergeStateStatus === "DIRTY")
     return { label: "Conflicts", tone: "critical" }
   if (checks === "fail") return { label: "Checks failed", tone: "critical" }

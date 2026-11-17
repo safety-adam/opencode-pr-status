@@ -44,6 +44,7 @@ function toRow(raw: Record<string, unknown>): Pull {
   const checks = Array.isArray(raw.statusCheckRollup) ? raw.statusCheckRollup : []
   const overall = pullStatus({
     checks,
+    state: String(raw.state ?? ""),
     reviewDecision,
     mergeable: String(raw.mergeable ?? ""),
     mergeStateStatus: String(raw.mergeStateStatus ?? ""),
@@ -66,6 +67,8 @@ function toRow(raw: Record<string, unknown>): Pull {
     status: overall.label,
     tone: overall.tone,
     queued: Boolean(raw.queued),
+    additions: Number(raw.additions ?? 0),
+    deletions: Number(raw.deletions ?? 0),
     draft: Boolean(raw.isDraft),
   }
 }
@@ -78,6 +81,7 @@ const TONE_COLOURS: Record<string, string> = {
   success: "var(--icon-success-base, #80d98f)",
   info: "#80d0ff",
   neutral: "#808080",
+  merged: "var(--icon-info-base, #b38ff4)",
 }
 
 function statusColour(row: Pull): string {
@@ -343,6 +347,10 @@ function PullsPanel() {
               <Show when={row.draft}>
                 <span style={statusPill("var(--text-base, #ededed)", "rgba(255, 255, 255, 0.16)")}>draft</span>
               </Show>
+              <Show when={row.additions || row.deletions}>
+                <span style={{ color: "#80d98f", "flex-shrink": 0 }}>{`+${row.additions}`}</span>
+                <span style={{ color: "#e06b75", "flex-shrink": 0 }}>{`-${row.deletions}`}</span>
+              </Show>
             </div>
             <div
               style={{
@@ -355,16 +363,16 @@ function PullsPanel() {
                 "min-width": "0",
               }}
             >
-              <Show when={row.checks}>
+              <Show when={row.status !== "Merged" && row.status !== "Closed" && row.checks}>
                 <span style={statusPill(checkColour(row.checks), checkBackground(row.checks))}>{checkLabel(row.checks)}</span>
               </Show>
-              <Show when={row.checks && row.review}>
+              <Show when={row.status !== "Merged" && row.status !== "Closed" && row.checks && row.review}>
                 <span style={MUTED}>·</span>
               </Show>
-              <Show when={row.review}>
+              <Show when={row.status !== "Merged" && row.status !== "Closed" && row.review}>
                 <span style={reviewPill(row.review)}>{row.review}</span>
               </Show>
-              <Show when={row.queued}>
+              <Show when={row.status !== "Merged" && row.status !== "Closed" && row.queued}>
                 <span
                   style={statusPill(
                     "var(--text-interactive-base, #80d0ff)",
@@ -372,6 +380,26 @@ function PullsPanel() {
                   )}
                 >
                   {row.status}
+                </span>
+              </Show>
+              <Show when={row.status === "Merged"}>
+                <span
+                  style={statusPill(
+                    statusColour(row),
+                    "var(--surface-info-weak, rgba(179, 143, 244, 0.14))",
+                  )}
+                >
+                  Merged
+                </span>
+              </Show>
+              <Show when={row.status === "Closed"}>
+                <span
+                  style={statusPill(
+                    "var(--text-weak, #808080)",
+                    "var(--surface-weak, rgba(128, 128, 128, 0.14))",
+                  )}
+                >
+                  Closed
                 </span>
               </Show>
               <Show when={(row.checks || row.review) && row.comments}>
@@ -484,7 +512,7 @@ export default Plugin.define({
                 "--repo",
                 ref.repo,
                 "--json",
-                "number,title,url,headRefName,isDraft,reviewDecision,statusCheckRollup",
+                "number,title,url,headRefName,isDraft,reviewDecision,statusCheckRollup,state,mergeable,mergeStateStatus,mergedAt",
               ],
               input.directory,
             )) as Record<string, unknown>
