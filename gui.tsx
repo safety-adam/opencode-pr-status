@@ -50,6 +50,7 @@ function toRow(raw: Record<string, unknown>): Pull {
     ),
     checks: checksOf(raw.statusCheckRollup),
     review: String(raw.reviewDecision ?? "").toLowerCase().replace(/_/g, " "),
+    comments: "",
     draft: Boolean(raw.isDraft),
   }
 }
@@ -61,6 +62,13 @@ function statusColour(row: Pull): string {
   if (row.checks === "pending" || row.review === "review required") return "var(--icon-warning-base, #f1c21b)"
   if (row.checks === "passing" || row.review === "approved") return "var(--icon-success-base, #80d98f)"
   return "var(--text-weak, #808080)"
+}
+
+function checkLabel(checks: string): string {
+  if (checks === "passing") return "checks passing"
+  if (checks === "failing") return "checks failing"
+  if (checks === "pending") return "checks pending"
+  return checks
 }
 
 function checkColour(checks: string): string {
@@ -103,6 +111,44 @@ function guiLog(message: string) {
   try {
     appendFileSync(GUI_LOG, `${new Date().toISOString()} ${message}\n`)
   } catch {}
+}
+
+const THREADS_QUERY =
+  "query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){reviewThreads(first:100){totalCount nodes{isResolved}}}}}"
+
+async function commentsFor(repo: string, number: number, directory: string): Promise<string> {
+  const [owner, name] = repo.split("/")
+  if (!owner || !name) return ""
+  try {
+    const raw = (await ghJson(
+      [
+        "api",
+        "graphql",
+        "-f",
+        `query=${THREADS_QUERY}`,
+        "-F",
+        `owner=${owner}`,
+        "-F",
+        `name=${name}`,
+        "-F",
+        `number=${number}`,
+      ],
+      directory,
+    )) as any
+    const nodes = raw?.data?.repository?.pullRequest?.reviewThreads?.nodes
+    if (!Array.isArray(nodes)) return ""
+    const resolved = nodes.filter((thread: any) => thread?.isResolved === true).length
+    const unresolved = nodes.length - resolved
+    return [
+      unresolved ? `${unresolved} unresolved` : "",
+      resolved ? `${resolved} resolved` : "",
+    ]
+      .filter(Boolean)
+      .join(" · ")
+  } catch (error) {
+    guiLog(`commentsFor error ${String(error)}`)
+    return ""
+  }
 }
 
 async function repoOf(directory: string): Promise<string> {
@@ -256,13 +302,19 @@ function PullsPanel() {
               }}
             >
               <Show when={row.checks}>
-                <span style={statusPill(checkColour(row.checks), checkBackground(row.checks))}>{row.checks}</span>
+                <span style={statusPill(checkColour(row.checks), checkBackground(row.checks))}>{checkLabel(row.checks)}</span>
               </Show>
               <Show when={row.checks && row.review}>
                 <span style={MUTED}>·</span>
               </Show>
               <Show when={row.review}>
                 <span style={reviewPill(row.review)}>{row.review}</span>
+              </Show>
+              <Show when={(row.checks || row.review) && row.comments}>
+                <span style={MUTED}>·</span>
+              </Show>
+              <Show when={row.comments}>
+                <span style={{ color: "var(--text-weak, #808080)" }}>{row.comments}</span>
               </Show>
             </div>
           </div>
@@ -358,7 +410,10 @@ export default Plugin.define({
               ],
               input.directory,
             )) as Record<string, unknown>
-            if (raw && typeof raw === "object") rows.push(toRow(raw))
+            if (raw && typeof raw === "object") {
+              const row = toRow(raw)
+              rows.push({ ...row, comments: await commentsFor(ref.repo, ref.number, input.directory) })
+            }
           } catch {}
         }
 

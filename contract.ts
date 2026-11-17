@@ -10,6 +10,7 @@ export const Pull = Schema.Struct({
   branch: Schema.String,
   checks: Schema.String,
   review: Schema.String,
+  comments: Schema.String,
   draft: Schema.Boolean,
 })
 
