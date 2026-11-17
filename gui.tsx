@@ -311,7 +311,8 @@ function PullsPanel() {
           <div
             style={{
               padding: "8px 10px 8px 9px",
-              "border-left": `3px solid ${statusColour(row)}`,
+              "border-left": "none",
+              position: "relative",
               background: statusBackground(row),
               "border-bottom": "1px solid var(--border-weak, rgba(127,127,127,0.18))",
               "line-height": "1.5",
@@ -321,6 +322,17 @@ function PullsPanel() {
             title={row.branch}
             onClick={() => ctx.system.openExternal(row.url)}
           >
+            <span
+              style={{
+                position: "absolute",
+                left: 0,
+                top: 0,
+                bottom: 0,
+                width: "3px",
+                background: statusColour(row),
+                "flex-shrink": 0,
+              }}
+            />
             <div style={{ display: "flex", gap: "6px", "align-items": "baseline", "min-width": "0" }}>
               <span style={{ color: statusColour(row), opacity: 0.85 }}>#{row.number}</span>
               <span
