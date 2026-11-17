@@ -63,11 +63,38 @@ function statusColour(row: Pull): string {
   return "var(--text-weak, #808080)"
 }
 
+function checkColour(checks: string): string {
+  if (checks === "failing") return "var(--icon-critical-base, #e06b75)"
+  if (checks === "pending") return "var(--icon-warning-base, #f1c21b)"
+  if (checks === "passing") return "var(--icon-success-base, #80d98f)"
+  return "var(--text-weak, #808080)"
+}
+
+function checkBackground(checks: string): string {
+  if (checks === "failing") return "var(--surface-critical-weak, rgba(224, 107, 117, 0.16))"
+  if (checks === "pending") return "var(--surface-warning-weak, rgba(241, 194, 27, 0.16))"
+  if (checks === "passing") return "var(--surface-success-weak, rgba(128, 217, 143, 0.16))"
+  return "transparent"
+}
+
+function statusPill(foreground: string, background: string) {
+  return {
+    color: foreground,
+    background,
+    padding: "0px 5px",
+    "border-radius": "4px",
+  }
+}
+
 function reviewColour(review: string): string {
   if (review === "approved") return "var(--icon-success-base, #80d98f)"
   if (review === "changes requested") return "var(--icon-critical-base, #e06b75)"
   if (review === "review required") return "var(--icon-warning-base, #f1c21b)"
   return "var(--text-weak, #808080)"
+}
+
+function reviewPill(review: string) {
+  return statusPill(reviewColour(review), review === "approved" ? "var(--surface-success-weak, rgba(128, 217, 143, 0.16))" : review === "changes requested" ? "var(--surface-critical-weak, rgba(224, 107, 117, 0.16))" : review === "review required" ? "var(--surface-warning-weak, rgba(241, 194, 27, 0.16))" : "transparent")
 }
 
 const GUI_LOG = "/Users/adam.farmer/.config/opencode/tui/pr-status/gui.log"
@@ -229,13 +256,13 @@ function PullsPanel() {
               }}
             >
               <Show when={row.checks}>
-                <span style={{ color: statusColour(row) }}>{row.checks}</span>
+                <span style={statusPill(checkColour(row.checks), checkBackground(row.checks))}>{row.checks}</span>
               </Show>
               <Show when={row.checks && row.review}>
                 <span style={MUTED}>·</span>
               </Show>
               <Show when={row.review}>
-                <span style={{ color: reviewColour(row.review) }}>{row.review}</span>
+                <span style={reviewPill(row.review)}>{row.review}</span>
               </Show>
             </div>
           </div>
