@@ -189,24 +189,26 @@ function PullsPanel() {
         {(row) => (
           <div
             style={{
-              padding: "6px 10px",
-              "padding-left": "9px",
+              padding: "8px 10px 8px 9px",
               "border-left": `2px solid ${statusColour(row)}`,
               "border-bottom": "1px solid var(--border-weak, rgba(127,127,127,0.18))",
+              "line-height": "1.5",
               "font-size": "12px",
               cursor: "pointer",
             }}
+            title={row.branch}
             onClick={() => ctx.system.openExternal(row.url)}
           >
-            <div style={{ display: "flex", gap: "6px", "align-items": "baseline" }}>
-              <span style={{ color: statusColour(row) }}>#{row.number}</span>
+            <div style={{ display: "flex", gap: "6px", "align-items": "baseline", "min-width": "0" }}>
+              <span style={{ color: statusColour(row), opacity: 0.85 }}>#{row.number}</span>
               <span
                 style={{
                   flex: "1",
                   overflow: "hidden",
                   "text-overflow": "ellipsis",
                   "white-space": "nowrap",
-                  color: statusColour(row),
+                  "font-weight": 500,
+                  color: "inherit",
                 }}
               >
                 {row.title}
@@ -215,10 +217,22 @@ function PullsPanel() {
                 <span style={MUTED}>draft</span>
               </Show>
             </div>
-            <div style={{ display: "flex", gap: "8px", "margin-top": "2px" }}>
-              <span style={MUTED}>{row.branch}</span>
+            <div
+              style={{
+                display: "flex",
+                gap: "6px",
+                "align-items": "center",
+                "margin-top": "1px",
+                "font-size": "11px",
+                "white-space": "nowrap",
+                "min-width": "0",
+              }}
+            >
               <Show when={row.checks}>
                 <span style={{ color: statusColour(row) }}>{row.checks}</span>
+              </Show>
+              <Show when={row.checks && row.review}>
+                <span style={MUTED}>·</span>
               </Show>
               <Show when={row.review}>
                 <span style={{ color: reviewColour(row.review) }}>{row.review}</span>
