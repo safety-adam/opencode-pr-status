@@ -11,6 +11,9 @@ export const Pull = Schema.Struct({
   checks: Schema.String,
   review: Schema.String,
   comments: Schema.String,
+  status: Schema.String,
+  tone: Schema.String,
+  queued: Schema.Boolean,
   draft: Schema.Boolean,
 })
 

@@ -3,7 +3,8 @@ import { appendFileSync, existsSync } from "node:fs"
 import { For, Show, createEffect, createSignal, onCleanup } from "solid-js"
 import { Command, Panel, Plugin, usePlugin, type PanelTab } from "@opencode/plugin/gui"
 import { Pulls, type Pull } from "./contract"
-import { ciState, refsFromMessages } from "./shared"
+import { Schema } from "effect"
+import { ciState, pullStatus, refsFromMessages } from "./shared"
 
 // gh is not on the PATH Electron gets when the app starts from Finder.
 const GH_CANDIDATES = ["/opt/homebrew/bin/gh", "/usr/local/bin/gh", "gh"]
@@ -33,6 +34,25 @@ function checksOf(value: unknown): string {
 }
 
 function toRow(raw: Record<string, unknown>): Pull {
+  let reviewDecision = String(raw.reviewDecision ?? "").toUpperCase()
+  if (!reviewDecision && Array.isArray(raw.latestReviews)) {
+    const states = raw.latestReviews.map((r: any) => String(r?.state ?? "").toUpperCase())
+    if (states.includes("CHANGES_REQUESTED")) reviewDecision = "CHANGES_REQUESTED"
+    else if (states.includes("APPROVED")) reviewDecision = "APPROVED"
+  }
+
+  const checks = Array.isArray(raw.statusCheckRollup) ? raw.statusCheckRollup : []
+  const overall = pullStatus({
+    checks,
+    reviewDecision,
+    mergeable: String(raw.mergeable ?? ""),
+    mergeStateStatus: String(raw.mergeStateStatus ?? ""),
+    isDraft: Boolean(raw.isDraft),
+    unresolved: Number(raw.unresolved ?? 0),
+    queued: Boolean(raw.queued),
+    queuePosition: typeof raw.queuePosition === "number" ? raw.queuePosition : null,
+  })
+
   return {
     number: Number(raw.number ?? 0),
     title: String(raw.title ?? ""),
@@ -40,20 +60,28 @@ function toRow(raw: Record<string, unknown>): Pull {
     branch: String(
       raw.headRefName ?? (raw.repository as { nameWithOwner?: unknown })?.nameWithOwner ?? "",
     ),
-    checks: checksOf(raw.statusCheckRollup),
-    review: String(raw.reviewDecision ?? "").toLowerCase().replace(/_/g, " "),
-    comments: "",
+    checks: checksOf(checks),
+    review: reviewDecision.toLowerCase().replace(/_/g, " "),
+    comments: String(raw.comments ?? "0 comments"),
+    status: overall.label,
+    tone: overall.tone,
+    queued: Boolean(raw.queued),
     draft: Boolean(raw.isDraft),
   }
 }
 
 const MUTED = { opacity: 0.6 }
 
+const TONE_COLOURS: Record<string, string> = {
+  critical: "var(--icon-critical-base, #e06b75)",
+  warning: "var(--icon-warning-base, #f1c21b)",
+  success: "var(--icon-success-base, #80d98f)",
+  info: "var(--text-interactive-base, #80d0ff)",
+  neutral: "var(--text-weak, #808080)",
+}
+
 function statusColour(row: Pull): string {
-  if (row.checks === "failing" || row.review === "changes requested") return "var(--icon-critical-base, #e06b75)"
-  if (row.checks === "pending" || row.review === "review required") return "var(--icon-warning-base, #f1c21b)"
-  if (row.checks === "passing" || row.review === "approved") return "var(--icon-success-base, #80d98f)"
-  return "var(--text-weak, #808080)"
+  return TONE_COLOURS[row.tone] ?? TONE_COLOURS.neutral
 }
 
 function checkLabel(checks: string): string {
@@ -105,19 +133,26 @@ function guiLog(message: string) {
   } catch {}
 }
 
-const THREADS_QUERY =
-  "query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){reviewThreads(first:100){totalCount nodes{isResolved}}}}}"
+const META_QUERY =
+  "query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){isInMergeQueue mergeQueueEntry{position} latestReviews(first:20){nodes{state}} reviewThreads(first:100){totalCount nodes{isResolved}}}}}"
 
-async function commentsFor(repo: string, number: number, directory: string): Promise<string> {
+async function metaFor(repo: string, number: number, directory: string) {
+  const fallback = {
+    comments: "0 comments",
+    unresolved: 0,
+    queued: false,
+    queuePosition: null as number | null,
+    latestReviews: [] as { state?: string }[],
+  }
   const [owner, name] = repo.split("/")
-  if (!owner || !name) return ""
+  if (!owner || !name) return fallback
   try {
     const raw = (await ghJson(
       [
         "api",
         "graphql",
         "-f",
-        `query=${THREADS_QUERY}`,
+        `query=${META_QUERY}`,
         "-F",
         `owner=${owner}`,
         "-F",
@@ -127,19 +162,28 @@ async function commentsFor(repo: string, number: number, directory: string): Pro
       ],
       directory,
     )) as any
-    const nodes = raw?.data?.repository?.pullRequest?.reviewThreads?.nodes
-    if (!Array.isArray(nodes) || nodes.length === 0) return "0 comments"
+    const pr = raw?.data?.repository?.pullRequest
+    if (!pr) return fallback
+    const nodes = Array.isArray(pr.reviewThreads?.nodes) ? pr.reviewThreads.nodes : []
     const resolved = nodes.filter((thread: any) => thread?.isResolved === true).length
     const unresolved = nodes.length - resolved
-    return [
-      unresolved ? `${unresolved} unresolved` : "",
-      resolved ? `${resolved} resolved` : "",
-    ]
-      .filter(Boolean)
-      .join(" · ")
+    return {
+      unresolved,
+      comments:
+        [
+          unresolved ? `${unresolved} unresolved` : "",
+          resolved ? `${resolved} resolved` : "",
+        ]
+          .filter(Boolean)
+          .join(" · ") || "0 comments",
+      queued: pr.isInMergeQueue === true || Boolean(pr.mergeQueueEntry),
+      queuePosition:
+        typeof pr.mergeQueueEntry?.position === "number" ? pr.mergeQueueEntry.position : null,
+      latestReviews: pr.latestReviews?.nodes ?? [],
+    }
   } catch (error) {
-    guiLog(`commentsFor error ${String(error)}`)
-    return ""
+    guiLog(`metaFor error ${String(error)}`)
+    return fallback
   }
 }
 
@@ -302,6 +346,16 @@ function PullsPanel() {
               <Show when={row.review}>
                 <span style={reviewPill(row.review)}>{row.review}</span>
               </Show>
+              <Show when={row.queued}>
+                <span
+                  style={statusPill(
+                    "var(--text-interactive-base, #80d0ff)",
+                    "var(--surface-info-weak, rgba(128, 208, 255, 0.16))",
+                  )}
+                >
+                  {row.status}
+                </span>
+              </Show>
               <Show when={(row.checks || row.review) && row.comments}>
                 <span style={MUTED}>·</span>
               </Show>
@@ -375,6 +429,11 @@ export default Plugin.define({
   main(ctx) {
     guiLog("gui main started")
     ctx.log?.write?.("info", "pr-status gui main started")
+    // Retain refs across transcript compaction. This is the same store the TUI uses.
+    const savedRefs = ctx.storage.store("pr-status", {
+      schema: Schema.Unknown,
+      initial: { refs: {} },
+    })
     ctx.provide(Pulls, {
       list: async (input) => {
         ctx.log?.write?.("info", "pr-status list", { sessionID: input.sessionID, directory: input.directory })
@@ -383,10 +442,21 @@ export default Plugin.define({
         const fallbackRepo = await repoOf(input.directory)
         guiLog(`messages ${messages.length}`)
         const refs = refsFromMessages(messages, fallbackRepo)
-        guiLog(`refs ${refs.length}`)
+        const previous = ((savedRefs.value as any)?.refs?.[input.sessionID] ?? []) as Ref[]
+        const merged = new Map<string, Ref>()
+        for (const ref of [...previous, ...refs]) merged.set(`${ref.repo}#${ref.number}`, ref)
+        const allRefs = [...merged.values()]
+        if (merged.size > previous.length) {
+          savedRefs.update((draft) => {
+            const value = draft as { refs?: Record<string, unknown> }
+            value.refs ??= {}
+            value.refs[input.sessionID] = allRefs
+          })
+        }
+        guiLog(`refs ${allRefs.length} total (${refs.length} from transcript)`)
 
         const rows: Pull[] = []
-        for (const ref of refs) {
+        for (const ref of allRefs) {
           try {
             const raw = (await ghJson(
               [
@@ -401,14 +471,13 @@ export default Plugin.define({
               input.directory,
             )) as Record<string, unknown>
             if (raw && typeof raw === "object") {
-              const row = toRow(raw)
-              rows.push({ ...row, comments: await commentsFor(ref.repo, ref.number, input.directory) })
+              rows.push(toRow({ ...raw, ...(await metaFor(ref.repo, ref.number, input.directory)) }))
             }
           } catch {}
         }
 
         guiLog(`rows ${rows.length}`)
-        ctx.log?.write?.("info", "pr-status rows", { count: rows.length, refs: refs.length })
+        ctx.log?.write?.("info", "pr-status rows", { count: rows.length, refs: allRefs.length })
         return rows
       },
     })

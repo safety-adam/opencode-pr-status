@@ -112,3 +112,40 @@ export function refsFromMessages(messages: any[], fallbackRepo: string): Ref[] {
 
   return [...found.values()]
 }
+
+export type StatusTone = "success" | "critical" | "warning" | "info" | "neutral"
+
+export type PullStatusInput = {
+  checks: Check[]
+  reviewDecision?: string
+  mergeable?: string
+  mergeStateStatus?: string
+  isDraft?: boolean
+  unresolved?: number
+  queued?: boolean
+  queuePosition?: number | null
+}
+
+// One overall status decision for every surface. Each surface only maps the
+// returned tone to its own colour system.
+export function pullStatus(input: PullStatusInput): { label: string; tone: StatusTone } {
+  const checks = ciState(input.checks)
+  if (input.isDraft || input.mergeStateStatus === "DRAFT") return { label: "Draft", tone: "neutral" }
+  if (input.mergeable === "CONFLICTING" || input.mergeStateStatus === "DIRTY")
+    return { label: "Conflicts", tone: "critical" }
+  if (checks === "fail") return { label: "Checks failed", tone: "critical" }
+  if (input.reviewDecision === "CHANGES_REQUESTED") return { label: "Changes requested", tone: "critical" }
+  if (input.mergeStateStatus === "BLOCKED" && (input.unresolved ?? 0) > 0)
+    return { label: "Unresolved conversations", tone: "warning" }
+  if (input.queued)
+    return { label: input.queuePosition ? `Queued ${input.queuePosition}` : "Queued", tone: "info" }
+  if (checks === "pending" || input.mergeStateStatus === "UNSTABLE")
+    return { label: "Checks pending", tone: "warning" }
+  if (input.mergeStateStatus === "BEHIND") return { label: "Behind base", tone: "warning" }
+  if (input.reviewDecision === "REVIEW_REQUIRED") return { label: "Review required", tone: "warning" }
+  if (input.mergeStateStatus === "BLOCKED") return { label: "Blocked", tone: "warning" }
+  if (input.mergeStateStatus === "CLEAN" || (checks === "pass" && input.reviewDecision === "APPROVED"))
+    return { label: "Ready to merge", tone: "success" }
+  if (checks === "pass") return { label: "All checks passed", tone: "success" }
+  return { label: "Open", tone: "neutral" }
+}
