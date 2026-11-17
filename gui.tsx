@@ -3,7 +3,7 @@ import { appendFileSync, existsSync } from "node:fs"
 import { For, Show, createEffect, createSignal, onCleanup } from "solid-js"
 import { Command, Panel, Plugin, usePlugin, type PanelTab } from "@opencode/plugin/gui"
 import { Pulls, type Pull } from "./contract"
-import { refsFromMessages } from "./shared"
+import { ciState, refsFromMessages } from "./shared"
 
 // gh is not on the PATH Electron gets when the app starts from Finder.
 const GH_CANDIDATES = ["/opt/homebrew/bin/gh", "/usr/local/bin/gh", "gh"]
@@ -28,16 +28,8 @@ function ghJson(args: string[], cwd: string): Promise<unknown> {
 
 function checksOf(value: unknown): string {
   if (!Array.isArray(value) || value.length === 0) return ""
-  const states = value.map((item) =>
-    String(
-      (item as { conclusion?: unknown })?.conclusion ??
-        (item as { status?: unknown })?.status ??
-        "",
-    ),
-  )
-  if (states.some((state) => /FAILURE|ERROR|TIMED_OUT|CANCELLED|ACTION_REQUIRED/.test(state))) return "failing"
-  if (states.some((state) => /PENDING|IN_PROGRESS|QUEUED|EXPECTED|WAITING/.test(state))) return "pending"
-  return "passing"
+  const state = ciState(value)
+  return state === "pass" ? "passing" : state === "fail" ? "failing" : "pending"
 }
 
 function toRow(raw: Record<string, unknown>): Pull {
