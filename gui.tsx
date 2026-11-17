@@ -84,6 +84,18 @@ function statusColour(row: Pull): string {
   return TONE_COLOURS[row.tone] ?? TONE_COLOURS.neutral
 }
 
+const TONE_BACKGROUNDS: Record<string, string> = {
+  critical: "var(--surface-critical-weak, rgba(224, 107, 117, 0.1))",
+  warning: "var(--surface-warning-weak, rgba(241, 194, 27, 0.1))",
+  success: "var(--surface-success-weak, rgba(128, 217, 143, 0.1))",
+  info: "var(--surface-info-weak, rgba(128, 208, 255, 0.1))",
+  neutral: "transparent",
+}
+
+function statusBackground(row: Pull): string {
+  return TONE_BACKGROUNDS[row.tone] ?? "transparent"
+}
+
 function checkLabel(checks: string): string {
   if (checks === "passing") return "checks passing"
   if (checks === "failing") return "checks failing"
@@ -299,7 +311,8 @@ function PullsPanel() {
           <div
             style={{
               padding: "8px 10px 8px 9px",
-              "border-left": `2px solid ${statusColour(row)}`,
+              "border-left": `3px solid ${statusColour(row)}`,
+              background: statusBackground(row),
               "border-bottom": "1px solid var(--border-weak, rgba(127,127,127,0.18))",
               "line-height": "1.5",
               "font-size": "12px",
