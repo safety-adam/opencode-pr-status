@@ -314,7 +314,7 @@ function PullsPanel() {
                 <span style={MUTED}>·</span>
               </Show>
               <Show when={row.comments}>
-                <span style={{ color: "var(--text-weak, #808080)" }}>{row.comments}</span>
+                <span style={{ color: "var(--text-weak, #808080)" }}>{row.comments || "0 comments"}</span>
               </Show>
             </div>
           </div>
