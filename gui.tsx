@@ -75,7 +75,7 @@ const MUTED = { opacity: 0.6 }
 const TONE_COLOURS: Record<string, string> = {
   critical: "#e06b75",
   warning: "#f1c21b",
-  success: "#80d98f",
+  success: "var(--icon-success-base, #80d98f)",
   info: "#80d0ff",
   neutral: "#808080",
 }
