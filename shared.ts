@@ -135,8 +135,6 @@ export function pullStatus(input: PullStatusInput): { label: string; tone: Statu
   const checks = ciState(input.checks)
   if (input.state === "MERGED") return { label: "Merged", tone: "merged" }
   if (input.state === "CLOSED") return { label: "Closed", tone: "neutral" }
-  if (input.mergeable === "CONFLICTING" || input.mergeStateStatus === "DIRTY")
-    return { label: "Conflicts", tone: "critical" }
   if (checks === "fail") return { label: "Checks failed", tone: "critical" }
   if (input.reviewDecision === "CHANGES_REQUESTED") return { label: "Changes requested", tone: "critical" }
   // Unresolved comments count as a pending state whether or not GitHub blocks merging on them.
@@ -148,6 +146,8 @@ export function pullStatus(input: PullStatusInput): { label: string; tone: Statu
   if (input.mergeStateStatus === "BEHIND") return { label: "Behind base", tone: "warning" }
   if (input.reviewDecision === "REVIEW_REQUIRED") return { label: "Review required", tone: "warning" }
   if (input.mergeStateStatus === "BLOCKED") return { label: "Blocked", tone: "warning" }
+  if (input.mergeable === "CONFLICTING" || input.mergeStateStatus === "DIRTY")
+    return { label: "Conflicts", tone: "critical" }
   if (input.isDraft || input.mergeStateStatus === "DRAFT") return { label: "Draft", tone: "neutral" }
   if (input.mergeStateStatus === "CLEAN" || (checks === "pass" && input.reviewDecision === "APPROVED"))
     return { label: "Ready to merge", tone: "success" }

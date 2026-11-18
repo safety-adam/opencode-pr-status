@@ -365,8 +365,6 @@ function Stack(props: {
   const prStatus = (row: RowData): { label: string; color: any } => {
     const checks = ciState(row.checks)
     if (row.isDraft || row.mergeStateStatus === "DRAFT") return { label: "Draft", color: textMuted }
-    if (row.mergeable === "CONFLICTING" || row.mergeStateStatus === "DIRTY")
-      return { label: "Conflicts", color: red }
     if (checks === "fail") return { label: "Checks failed", color: red }
     if (row.reviewDecision === "CHANGES_REQUESTED") return { label: "Changes requested", color: red }
     // A BLOCKED state with unresolved threads means GitHub is waiting on the
@@ -384,6 +382,8 @@ function Stack(props: {
     if (row.reviewDecision === "REVIEW_REQUIRED")
       return { label: "Review required", color: yellow }
     if (row.mergeStateStatus === "BLOCKED") return { label: "Blocked", color: yellow }
+    if (row.mergeable === "CONFLICTING" || row.mergeStateStatus === "DIRTY")
+      return { label: "Conflicts", color: red }
     if (row.mergeStateStatus === "CLEAN" || (checks === "pass" && row.reviewDecision === "APPROVED"))
       return { label: "Ready to merge", color: green }
     if (checks === "pass") return { label: "All checks passed", color: green }
